@@ -20,6 +20,7 @@ import (
 	"flag"
 	"time"
 
+	"app-controller/pkg/signals"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -29,7 +30,6 @@ import (
 
 	clientset "app-controller/pkg/generated/clientset/versioned"
 	informers "app-controller/pkg/generated/informers/externalversions"
-	"app-controller/pkg/signals"
 )
 
 var (
@@ -41,40 +41,43 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 
-	// set up signals so we handle the first shutdown signal gracefully
-	stopCh := signals.SetupSignalHandler()
+	// set up signals so we handle the shutdown signal gracefully
+	ctx := signals.SetupSignalHandler()
+	logger := klog.FromContext(ctx)
 
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
-		klog.Fatalf("Error building kubeconfig: %s", err.Error())
+		logger.Error(err, "Error building kubeconfig")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		logger.Error(err, "Error building kubernetes clientset")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
-	appClient, err := clientset.NewForConfig(cfg)
+	exampleClient, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Error building app clientset: %s", err.Error())
+		logger.Error(err, "Error building kubernetes clientset")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	appInformerFactory := informers.NewSharedInformerFactory(appClient, time.Second*30)
+	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*30)
 
-	controller := NewController(kubeClient, appClient,
+	controller := NewController(ctx, kubeClient, exampleClient,
 		kubeInformerFactory.Apps().V1().Deployments(),
-		kubeInformerFactory.Core().V1().Services(),
-		kubeInformerFactory.Networking().V1().Ingresses(),
-		appInformerFactory.Appcontroller().V1alpha1().Apps())
+		exampleInformerFactory.Samplecontroller().V1alpha1().Foos())
 
-	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
+	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(ctx.done())
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
-	kubeInformerFactory.Start(stopCh)
-	appInformerFactory.Start(stopCh)
+	kubeInformerFactory.Start(ctx.Done())
+	exampleInformerFactory.Start(ctx.Done())
 
-	if err = controller.Run(2, stopCh); err != nil {
-		klog.Fatalf("Error running controller: %s", err.Error())
+	if err = controller.Run(ctx, 2); err != nil {
+		logger.Error(err, "Error running controller")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 }
 

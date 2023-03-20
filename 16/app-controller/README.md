@@ -1,14 +1,14 @@
 # sample-controller
 
-This repository implements a simple controller for watching App resources as
+This repository implements a simple controller for watching Foo resources as
 defined with a CustomResourceDefinition (CRD).
 
 **Note:** go-get or vendor this package as `app-controller`.
 
 This particular example demonstrates how to perform basic operations such as:
 
-* How to register a new custom resource (custom resource type) of type `App` using a CustomResourceDefinition.
-* How to create/get/list instances of your new resource type `App`.
+* How to register a new custom resource (custom resource type) of type `Foo` using a CustomResourceDefinition.
+* How to create/get/list instances of your new resource type `Foo`.
 * How to setup a controller on resource handling create/update/delete events.
 
 It makes use of the generators in [k8s.io/code-generator](https://github.com/kubernetes/code-generator)
@@ -18,7 +18,7 @@ do this yourself using the `./hack/update-codegen.sh` script.
 The `update-codegen` script will automatically generate the following files &
 directories:
 
-* `pkg/apis/appcontroller/v1alpha1/zz_generated.deepcopy.go`
+* `pkg/apis/samplecontroller/v1alpha1/zz_generated.deepcopy.go`
 * `pkg/generated/`
 
 Changes should not be made to these files manually, and when creating your own
@@ -89,7 +89,7 @@ go build -o sample-controller .
 # create a CustomResourceDefinition
 kubectl create -f artifacts/examples/crd-status-subresource.yaml
 
-# create a custom resource of type App
+# create a custom resource of type Foo
 kubectl create -f artifacts/examples/example-foo.yaml
 
 # check deployments created through the custom resource
@@ -126,6 +126,8 @@ type User struct {
 }
 ```
 
+Note, the JSON tag `json:` is required on all user facing fields within your type. Typically API types contain only user facing fields. When the JSON tag is omitted from the field, Kubernetes generators consider the field to be internal and will not expose the field in their generated external output. For example, this means that the field would not be included in a generated CRD schema.
+
 ## Validation
 
 To validate custom resources, use the [`CustomResourceValidation`](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/#validation) feature. Validation in the form of a [structured schema](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema) is mandatory to be provided for `apiextensions.k8s.io/v1`.
@@ -160,7 +162,7 @@ The [group](https://kubernetes.io/docs/reference/using-api/#api-groups) version 
 
 You can clean up the created CustomResourceDefinition with:
 ```sh
-kubectl delete crd foos.appcontroller.baiding.tech
+kubectl delete crd foos.samplecontroller.k8s.io
 ```
 
 ## Compatibility

@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package appcontroller
+package samplecontroller
 
 // GroupName is the group name used in this package
 const (
-	GroupName = "appcontroller.baiding.tech"
+	GroupName = "samplecontroller.k8s.io"
 )
